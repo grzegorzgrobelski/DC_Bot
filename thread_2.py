@@ -1,21 +1,25 @@
 import discord
 from discord.ext import commands
-import asyncio
 import re
-
-#Nie zapomniec:
-# Wywala sie na ostatnim elemencie bo brakuje mu tam ": " a jest ":"
+import json
 
 
+token= '' 
 command_prefix_global = '--- '
 
 
-# Konfiguracja bota
 intents = discord.Intents.default()
-intents.messages = True  # to trzeba sprawdzic ocb
-intents.message_content = True  # Potrzebne do nasłuchiwania wiadomości
+intents.messages = True  
+intents.message_content = True 
 bot = commands.Bot(command_prefix = command_prefix_global,intents=intents)
 
+
+thread_lifetime = 60 #Czas po którym thread znika bez aktywnosci
+# Mozliwe wartosci do wyboru: (W innych przypadkach bot nie zadziala)
+# 60 dla 1 godziny
+# 1440 dla 24 godzin
+# 4320 dla 3 dni
+# 10080 dla 7 dni
 
 description_template = """
 1. HoJ: {first_row}
@@ -31,19 +35,6 @@ description_template = """
 """
 
 
-
-
-
-
-#Chyba ten co tworzy powinien byc dodawany od kopa yoo? []
-## dodac zeby nie tworzyc kolejnych watkow jak juz sie jest w watku[]
-## Dodac przypianie do pierwszej wiadomosci jako watku []
-## Posprawdzac te ctx 
-
-
-
-
-
 @bot.event
 async def on_message(message):
     if message.author == bot.user:  
@@ -56,38 +47,14 @@ async def on_message(message):
         await change_thread_description(message, message.content)
         return
     return 
-
 async def create_thread(ctx, thread_name: str):
     existing_thread = discord.utils.find(lambda t: t.name == thread_name, ctx.channel.threads)
-    #print(existing_thread.parent)
-    #and existing_thread.parent == ctx.channel.name
+
     if existing_thread :
         await existing_thread.add_user(ctx.author)
         return
 
-    thread = await ctx.create_thread(name=thread_name, auto_archive_duration=1440)  # auto_archive_duration is in minutes (1440 = 24 hours)
-
-    #thread = await ctx.create_thread(name=thread_name, type=discord.ChannelType.public_thread) ## Test purp
-    
-    #thread = await ctx.channel.create_thread(name=thread_name, type=discord.ChannelType.public_thread) ## Test purp
-    #thread = await ctx.channel.create_thread(name=thread_name, type=discord.ChannelType.private_thread)  
-   
-
-        #
-        #thread = await message.create_thread(name=thread_name, auto_archive_duration=1440)  # auto_archive_duration is in minutes (1440 = 24 hours)
-
-    #messages = thread.history(oldest_first = True, limit= 2)
-
-    # async for message in messages:
-    #     message.delete()
-    #     if message.type == discord.MessageType.default:
-    #         if message.author == bot.user:
-    #             print('mleko')
-    #             #Switch na te +1.1 -1.2 itd + weryfikacja
-    #             #test = modify_description(message.content,new_comment,ctx.author.display_name)
-    #             #await message.edit(content = test)  # Edytowanie wiadomości
-    #             #await ctx.send("Opis wątku został zmieniony.")
-    #           return
+    thread = await ctx.create_thread(name=thread_name, auto_archive_duration=thread_lifetime) 
 
     description_message = await thread.send(
         description_template.format(
@@ -102,14 +69,8 @@ async def create_thread(ctx, thread_name: str):
             ninth_row='',
             tenth_row=''
         ))
-    # await description_message.pin()
-    # await asyncio.gather(
-    #     description_message.pin()
-    # )
     await description_message.pin()
     await thread.add_user(ctx.author)
-
-
 async def change_thread_description(ctx, new_comment: str):
     if isinstance(ctx.channel, discord.Thread) and check_pattern(new_comment):
         messages = ctx.channel.history(oldest_first = True, limit= 2)
@@ -117,16 +78,9 @@ async def change_thread_description(ctx, new_comment: str):
         async for message in messages:
             if message.type == discord.MessageType.default:
                 if message.author == bot.user:
-                    #Switch na te +1.1 -1.2 itd + weryfikacja
                     test = modify_description(message.content,new_comment,ctx.author.display_name)
-                    await message.edit(content = test)  # Edytowanie wiadomości
-                    #await ctx.send("Opis wątku został zmieniony.")
+                    await message.edit(content = test) 
                     return
-        
-        # await ctx.send("Nie znaleziono wiadomości w wątku.")
-    # else:
-    #     await ctx.send("Ta komenda działa tylko w wątkach.")
-
 def modify_description(description,given_comment = '+1.1', given_nick = 'Test'):
     rows = [[None], [None], [None], [None], [None], [None], [None], [None], [None], [None]]
     if description[-1] == ':': description = description+ ' ' #To jeszcze do sprawdzenia
@@ -155,39 +109,33 @@ def modify_description(description,given_comment = '+1.1', given_nick = 'Test'):
         ninth_row=','.join(rows[8]) if rows[8][0] !='' and rows[8][0] != None else '',
         tenth_row=','.join(rows[9]) if rows[9][0] != '' and rows[9][0] != None else '',
     )
-
 def row_modyfication(table,comment,nick):
     action_type = comment[0]
-    affected_row = int(comment[1]) -1   #Dodac Handlowanie do obu /Tak zeby wylapac jakby jakies  cos innego niz numer byl ale tez jezlei < 0 jest
-    affected_positiom = int(comment[3:-1])-1 if len(comment) > 4 else int(comment[-1])-1
+    affected_row = int(comment[1:].split('.')[0]) -1  
+    affected_positiom = int(comment[1:].split('.')[1]) -1
     
     if action_type == '+':
         if table[affected_row] == ['']:
-            table[affected_row][0] = nick  # Jeśli lista jest pusta, przypisz nick do pierwszego elementu
+            table[affected_row][0] = nick 
         else:
-            if nick not in table[affected_row]: ## Unikamy duplikatow
+            if nick not in table[affected_row]:
                 if affected_positiom < len(table[affected_row]):
                     table[affected_row].insert(affected_positiom,nick)
                 else:
-                    table[affected_row].append(nick)  # Jeśli lista nie jest pusta, dodaj nick na koniec listy 
-            else: #Jest juz w tej liscie ale jest dalej niz zerowy element
+                    table[affected_row].append(nick)
+            else:
                 table[affected_row].remove(nick)
                 table[affected_row].insert(affected_positiom,nick)
-                print('trzeba go przeniesc')
-
-            #Tutaj trzeba będzie dopisac kod ktory przeniesie usera na koneic np listy 
         return table
     
     elif action_type == '-':
         table_affected_row_len = len(table[affected_row])
-        if table[affected_row] != [''] and table_affected_row_len != 1 and table_affected_row_len > affected_positiom : #Trzeba sprawdzic czy nie usuwamy kogos z poza listy
-            #table[affected_row].remove(nick) ## Trzeba zobaczyc co sie stanie jak w srodku wytniesz
-            table[affected_row].pop(affected_positiom) ## Trzeba zobaczyc co sie stanie jak w srodku wytniesz
-        elif table_affected_row_len == 1 and affected_positiom == 0:  #table[affected_row] == [''] and 
+        if table[affected_row] != [''] and table_affected_row_len != 1 and table_affected_row_len > affected_positiom :
+            table[affected_row].pop(affected_positiom) 
+        elif table_affected_row_len == 1 and affected_positiom == 0: 
             table[affected_row][0] =''
 
     return table
-
 def check_pattern(s):
     if s and s[0] in ['+', '-']:
         pattern = r'^[+-]?\d+\.\d+$'
@@ -195,7 +143,15 @@ def check_pattern(s):
         return match is not None
     else:
         return False
-    
-   
+def get_token():
+    if token != '':
+        return str(token)
+    else:
+        with open('tokens/config.json') as config_file:
+            config = json.load(config_file)
+            return str(config['token'])
 
-bot.run('')
+
+
+
+bot.run(get_token())
