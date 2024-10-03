@@ -74,7 +74,7 @@ async def create_thread(ctx, thread_name: str):
 async def change_thread_description(ctx, new_comment: str):
     if isinstance(ctx.channel, discord.Thread) and check_pattern(new_comment):
         messages = ctx.channel.history(oldest_first = True, limit= 2)
-        print(new_comment)
+        #print(new_comment)
         async for message in messages:
             if message.type == discord.MessageType.default:
                 if message.author == bot.user:
@@ -147,7 +147,7 @@ def get_token():
     if token != '':
         return str(token)
     else:
-        with open('tokens/config.json') as config_file:
+        with open('config.json') as config_file:
             config = json.load(config_file)
             return str(config['token'])
 
