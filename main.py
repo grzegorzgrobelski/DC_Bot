@@ -63,10 +63,9 @@ async def on_message(message):
         attachment = message.attachments[0]
         content = await attachment.read()  # Odczytuje zawartość jako bajty
         text_content = content.decode('utf-8')  
-        if "Created by" in text_content:
-            await process_file_content(message,text_content) ##Dodac async w funckji
-            await message.delete()
-            return
+        await process_file_content(message,text_content) ##Dodac async w funckji
+        await message.delete()
+        return
 
     elif isinstance(message.channel, discord.TextChannel) and message.content.startswith(command_prefix_global):
         await create_thread(message, message.content.split(' ')[1])
