@@ -3,11 +3,12 @@ from discord.ext import commands
 import re
 import json
 import random
+from file_manager import FileManager
 
 
 token= ''  
-
 command_prefix_global = '--- '
+
 
 
 intents = discord.Intents.default()
@@ -57,15 +58,19 @@ Created by {thread_author}
 
 @bot.event
 async def on_message(message):
-
     if message.author == bot.user:  
         return
-    if len(message.attachments) == 1 and message.attachments[0].filename.endswith('.txt'): ## Co jak ktos doda inny plik wtedy chyba nie powinien tego trigerowac
+    if isinstance(message.channel, discord.TextChannel) and len(message.attachments) == 1 and message.attachments[0].filename.endswith('.txt'): ## Co jak ktos doda inny plik wtedy chyba nie powinien tego trigerowac
         attachment = message.attachments[0]
-        content = await attachment.read()  # Odczytuje zawartość jako bajty
+        content = await attachment.read()  
         text_content = content.decode('utf-8')  
-        if '1.' in text_content and '2.' in text_content:
-            await process_file_content(message,text_content) ##Dodac async w funckji
+        if '***' in text_content:
+            new_description = FileManager(message.guild,text_content).add_author(message.author.mention).build_description()
+            initial_message = await message.channel.send(new_description or "No description provided.")
+            if message.content == '':
+                message.content= 'Thread_' + str(random.randint(0, 1000))
+            thread = await initial_message.create_thread(name= message.content, auto_archive_duration=thread_lifetime) 
+
             await message.delete()
             return
         else:
@@ -76,11 +81,16 @@ async def on_message(message):
         await message.delete()
         return
     
-    elif isinstance(message.channel, discord.Thread) and (message.content.startswith('+') or message.content.startswith('-')):
-        await change_thread_description(message, message.content)
-        await message.delete()
+    elif isinstance(message.channel, discord.Thread) and (message.content.startswith('x ') or message.content.startswith('-')):
+        parent_channel = message.channel.parent
+        parent_message_id = message.channel.id  
+        parent_message = await parent_channel.fetch_message(parent_message_id)
+        temp_test = FileManager(message.guild, parent_message.content).add_user(message.content, message.author).show_users_in_description().build_description()
+        #Sprawdzic jak jest turn off show_user_in_description + 14.0 -> dodanie kogos
+        await parent_message.edit(content=temp_test)
+        ##await change_thread_description(message, message.content)
+        #await message.delete()
         return
-
     
     return 
 
@@ -88,12 +98,8 @@ async def on_message(message):
 
 
 
-
-
-
 async def create_thread(ctx, thread_name: str):
     existing_thread = discord.utils.find(lambda t: t.name == thread_name, ctx.channel.threads)
-
     description = description_template.format(
         first_row='',
         second_row='',
@@ -110,7 +116,6 @@ async def create_thread(ctx, thread_name: str):
     initial_message = await ctx.channel.send(description or "No description provided.")
     thread = await initial_message.create_thread(name=thread_name, auto_archive_duration=thread_lifetime) 
     await thread.add_user(ctx.author)
-
 async def change_thread_description(ctx, new_comment: str):
     if isinstance(ctx.channel, discord.Thread) and check_pattern(new_comment):
         parent_channel = ctx.channel.parent
@@ -159,72 +164,6 @@ async def change_thread_description(ctx, new_comment: str):
             else:
                 desc = modify_description(parent_message.content,new_comment,ctx.author.mention)
                 await parent_message.edit(content=desc)
-async def process_file_content(ctx,content):
-    text_rows = [row for row in content.split('\n') if row != '']
-    thread_author_name = ''  ## Pamietac ze to moze zostać ''
-    createdby_included = False
-    table_start_index = 0
-    table_start_index = 0
-    rows_nick_list = []
-    thread_name = ''
-    thread_author = ''
-    thread_description = ''
-    
-
-    for index, single_row in enumerate(text_rows):
-        if thread_author_name == '' and 'Created by' in single_row:
-            try:
-                thread_author_name = single_row.split('Created by')[1]
-                createdby_included = True
-            except Exception as e:
-                pass
-        elif table_start_index == 0 and 'Comp:' in single_row:
-            table_start_index = index+1
-
-    if createdby_included:
-        thread_description = text_rows[1:table_start_index-1]
-        only_name = thread_author_name.strip()
-
-        nickName = ctx.guild.get_member_named(only_name)
-        if nickName != None:
-            thread_author_name= nickName.mention
-            thread_author = nickName
-        else:
-            thread_author_name = '<@969918981660086342>'
-
-    else:
-        thread_description = thread_description.join(text_rows[0:table_start_index-1])  
-        thread_author_name = '<@969918981660086342>' 
-
-    if '10.' in text_rows[-1]: 
-        thread_name= 'Thread_' + str(random.randint(0, 1000))
-        for single_row in text_rows[table_start_index:]:
-            nicks_list_prep = single_row.split('.')[1].strip().split(',')
-            rows_nick_list.append(nicks_list_prep)
-    else:
-        thread_name = text_rows[-1].strip()
-        for single_row in text_rows[table_start_index:-1]:
-            nicks_list_prep = single_row.split('.')[1].strip().split(',')
-            rows_nick_list.append(nicks_list_prep)
-
-    discord_user_list = get_discord_user_list(ctx.guild,rows_nick_list)
-
-    thread_desc = file_description_template.format(
-        thread_author = thread_author_name,
-        description = ''.join(thread_description),
-        first_row= ','.join(discord_user_list[0]) if discord_user_list[0][0] != '' and discord_user_list[0][0] != None else '',
-        second_row= ','.join(discord_user_list[1]) if discord_user_list[1][0] != '' and discord_user_list[1][0] != None else '',
-        third_row= ','.join(discord_user_list[2]) if discord_user_list[2][0] != '' and discord_user_list[2][0] != None else '',
-        fourth_row=','.join(discord_user_list[3]) if discord_user_list[3][0] != '' and discord_user_list[3][0] != None else '',
-        fifth_row=','.join(discord_user_list[4]) if discord_user_list[4][0] != '' and discord_user_list[4][0] != None else '',
-        sixth_row=','.join(discord_user_list[5]) if discord_user_list[5][0] != '' and discord_user_list[5][0] != None else '',
-        seventh_row=','.join(discord_user_list[6]) if discord_user_list[6][0] != '' and discord_user_list[6][0] != None else '',
-        eighth_row=','.join(discord_user_list[7]) if discord_user_list[7][0] != '' and discord_user_list[7][0] != None else '',
-        ninth_row=','.join(discord_user_list[8]) if discord_user_list[8][0] !='' and discord_user_list[8][0] != None else '',
-        tenth_row=','.join(discord_user_list[9]) if discord_user_list[9][0] != '' and discord_user_list[9][0] != None else '',
-    )
-    initial_message = await ctx.channel.send(thread_desc or "No description provided.")
-    thread = await initial_message.create_thread(name=thread_name, auto_archive_duration=thread_lifetime) 
 def get_discord_user_list(guild,user_list):
     discord_user_list = []
     for row in user_list:
@@ -242,6 +181,7 @@ def get_discord_user_list(guild,user_list):
                 pass
         discord_user_list.append(discord_user_row)
     return discord_user_list
+
 def modify_description(description,given_comment = '+1.1', given_nick = 'Test'):
     rows = [[None], [None], [None], [None], [None], [None], [None], [None], [None], [None]]
     if description[-1] == ':': description = description+ ' ' #To jeszcze do sprawdzenia
