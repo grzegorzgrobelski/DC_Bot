@@ -212,7 +212,7 @@ class FileManager:
             return message_content
         if self.thread_name != '':
             return self.thread_name
-        return 'Pls sign up in the ' + str(random.randint(0, 1000))
+        return 'Sign up in the thread ' + str(random.randint(0, 1000))
 
 
     
