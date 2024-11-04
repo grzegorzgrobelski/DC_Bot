@@ -1,16 +1,17 @@
 import re
-
+import random
 pattern = re.compile(r"^([1-9][0-9]?)\.")
 
 class FileManager:
-    def __init__(self,guild, content):
+    def __init__(self,guild, content, is_on_init = False):
         self.main_thread_description = ''
         self.file_content = content
+        self.thread_name = ''
         self.thread_author = ''
         self.guild = guild
         self.users_in_description = False
+        self.is_on_init = is_on_init
         self.teams = self.process_file_content(self.file_content)
-        print('mleczko')
         
 
 # async 
@@ -66,11 +67,20 @@ class FileManager:
         text_rows = [row.strip() for row in content.split('\n') if row != '']
         counter = 0
         list_teams = []
+        come_from_file = False
+        if '***' in content:
+            come_from_file = True
+
+
 
         for index, single_row in enumerate(text_rows):
             if '##' in single_row: ## Sprawdzic czy ##A ## C / zadziala
-                if self.main_thread_description == '':
+                if self.main_thread_description == '' and come_from_file:
                     self.main_thread_description = "".join(str(x) + '\n' for x in text_rows[text_rows.index('***')+1 : index])
+                elif self.main_thread_description == '' and not come_from_file:
+                    self.main_thread_description = "".join(str(x) + '\n' for x in text_rows[: index])
+
+
                 
                 list_teams.append(Team(str(single_row.split('##')[1])))
                 if len(list_teams) != 1:
@@ -85,92 +95,16 @@ class FileManager:
                         list_teams[counter].users_list.append(self.get_discord_user_list(number_before_dot,user_nick_list))
                     else:
                         list_teams[counter].users_list.append((str(number_before_dot)+'.', ''))
+                elif self.is_on_init and self.thread_name == '' and '==' in single_row.strip():
+                    self.thread_name = str(single_row.strip().split('==')[1])
+        
         return list_teams
 
-            # elif self.pattern.match(single_row.strip()) and main_thread_description != '':
-            #     print('mleko')
-            #     number_before_dot = self.pattern.match.group(1)  # Wyciągamy liczbę przed kropką
-            #     print(f"Wiersz zaczyna się od liczby {number_before_dot} z kropką: {number_before_dot}")
-
-
-            # if ('1.' or '2.') in single_row and main_thread_description != '': # To znaczy ze jestesmy przy liscie
-            #     list_mode = True
-            #     print('lisra')
-                # Trzeba:
-                # sprawdzic czy cos w niej jest 
-                # Utworzyc usera i dodac go do teamu / pamiętać o sprawdzeniu member
-                ## Dodac opis do teamu
-               # list_teams[counter].description = 'test'
-            # elif list_mode: # A co jak zacznie sie od '2. '
-            #     try:
-            #         if '.' in single_row:
-            #             print('Row with user lets assign them')
-            #             # A co jakby to była tupla z userami [Pozycja , Nick]
-
-            #         print('mleko')
-
-            #     except Exception as e:
-            #         pass
-        # for index, single_row in enumerate(text_rows):
-        #     if thread_author_name == '' and 'Created by' in single_row:
-        #         try:
-        #             thread_author_name = single_row.split('Created by')[1]
-        #             createdby_included = True
-        #         except Exception as e:
-        #             pass
-        #     elif table_start_index == 0 and 'Comp:' in single_row:
-        #         table_start_index = index+1
-        # if createdby_included:
-        #     thread_description = text_rows[1:table_start_index-1]
-        #     only_name = thread_author_name.strip()
-
-        #     nickName = ctx.guild.get_member_named(only_name)
-        #     if nickName != None:
-        #         thread_author_name= nickName.mention
-        #         thread_author = nickName
-        #     else:
-        #         thread_author_name = '<@969918981660086342>'
-
-        # else:
-        #     thread_description = thread_description.join(text_rows[0:table_start_index-1])  
-        #     thread_author_name = '<@969918981660086342>' 
-
-        # if '10.' in text_rows[-1]: 
-        #     thread_name= 'Thread_' + str(random.randint(0, 1000))
-        #     for single_row in text_rows[table_start_index:]:
-        #         nicks_list_prep = single_row.split('.')[1].strip().split(',')
-        #         rows_nick_list.append(nicks_list_prep)
-        # else:
-        #     thread_name = text_rows[-1].strip()
-        #     for single_row in text_rows[table_start_index:-1]:
-        #         nicks_list_prep = single_row.split('.')[1].strip().split(',')
-        #         rows_nick_list.append(nicks_list_prep)
-
-        # discord_user_list = get_discord_user_list(ctx.guild,rows_nick_list)
-
-        # thread_desc = file_description_template.format(
-        #     thread_author = thread_author_name,
-        #     description = ''.join(thread_description),
-        #     first_row= ','.join(discord_user_list[0]) if discord_user_list[0][0] != '' and discord_user_list[0][0] != None else '',
-        #     second_row= ','.join(discord_user_list[1]) if discord_user_list[1][0] != '' and discord_user_list[1][0] != None else '',
-        #     third_row= ','.join(discord_user_list[2]) if discord_user_list[2][0] != '' and discord_user_list[2][0] != None else '',
-        #     fourth_row=','.join(discord_user_list[3]) if discord_user_list[3][0] != '' and discord_user_list[3][0] != None else '',
-        #     fifth_row=','.join(discord_user_list[4]) if discord_user_list[4][0] != '' and discord_user_list[4][0] != None else '',
-        #     sixth_row=','.join(discord_user_list[5]) if discord_user_list[5][0] != '' and discord_user_list[5][0] != None else '',
-        #     seventh_row=','.join(discord_user_list[6]) if discord_user_list[6][0] != '' and discord_user_list[6][0] != None else '',
-        #     eighth_row=','.join(discord_user_list[7]) if discord_user_list[7][0] != '' and discord_user_list[7][0] != None else '',
-        #     ninth_row=','.join(discord_user_list[8]) if discord_user_list[8][0] !='' and discord_user_list[8][0] != None else '',
-        #     tenth_row=','.join(discord_user_list[9]) if discord_user_list[9][0] != '' and discord_user_list[9][0] != None else '',
-        # )
-        # initial_message = await ctx.channel.send(thread_desc or "No description provided.")
-        # thread = await initial_message.create_thread(name=thread_name, auto_archive_duration=thread_lifetime) 
-
+          
     def add_author(self, Nick = ''):
-        print('mleko')
         self.thread_author = Nick
         return self
     
-
     def add_user(self,message,author):
         if len(self.teams) == 0:
             return self
@@ -178,7 +112,11 @@ class FileManager:
         if len(self.teams) > 1:
             devided_message = message.split(' ')
             team_index = devided_message[1].replace('pt','')
-            postion_index = devided_message[2]
+            try:
+                postion_index = devided_message[2]
+            except Exception as e:
+                print(e)
+                print('User probably used the wrong command')
 
         else:
             devided_message = message.split(' ')
@@ -192,13 +130,20 @@ class FileManager:
                 #if place_holder[0] == postion_index+'.' and place_holder[2] == '':
                 place_holder = list(place_holder[0])
                 if place_holder[0] == postion_index and place_holder[2] == '':
+                    self.delete_user(author)
                     place_holder[2] = author.mention
                     users_list[index] = place_holder
+                    return
+
             elif isinstance(place_holder, tuple):
                 if place_holder[0] == postion_index+'.' and place_holder[1] == '':
+
+                    self.delete_user(author)
+
                     place_holder = list(place_holder) 
                     place_holder.append(author.mention)
                     users_list[index] = place_holder
+                    break
 
 
 
@@ -209,8 +154,24 @@ class FileManager:
 
         return self
     
-    def delete_user(self):
-        print('innego')
+    def delete_user(self, author):
+        #users_list = self.teams[int(team_index) - 1].users_list
+        for team in self.teams:
+            for index ,place_holder in  enumerate(team.users_list):
+                if isinstance(place_holder, list):
+                    #if place_holder[0] == postion_index+'.' and place_holder[2] == '':
+                    place_holder_list = list(place_holder[0])
+                    if place_holder_list[2] == author.mention:
+                        place_holder_list[2] = ''
+                        team.users_list[index] = place_holder_list
+                        break
+                elif isinstance(place_holder, tuple):
+                    if place_holder[1] == author.mention:
+                        place_holder = list(place_holder) 
+                        place_holder.append('')
+                        team.users_list[index] = place_holder
+                        break
+
         return self
     
     def show_users_in_description(self):
@@ -218,15 +179,16 @@ class FileManager:
         return self
 
     def build_description(self):
-        final_text = '*** \n'
+        #final_text = '*** \n'
+        final_text = ''
         if 'Call started by ' not in  self.main_thread_description:
-            final_text += 'Call started by ' + self.thread_author + ' \n'
+            final_text += 'Call started by ' + self.thread_author + '\n'
 
-        final_text += self.main_thread_description
-
+        final_text += self.main_thread_description 
+        
+        #final_text += 
         for team in self.teams:
-            final_text += ' \n '
-            final_text += '##' + str(team.name) + ' \n '
+            final_text += '\n' + '## ' + str(team.name) + '\n '
             for row in team.users_list:
                 if isinstance(row, list):
                     if len(row) == 1:
@@ -234,8 +196,7 @@ class FileManager:
                     if self.users_in_description and row[2] != '':
                         if row[0].endswith('.'):
                             row[0] = row[0].replace('.','')
-                            print('mleko')
-                        temp_testcik = str(row[0]) + '\\.' + row[1] + ' -' + row[2] + ' \n '
+                        temp_testcik = str(row[0]) + '\\. ' + row[1] + ' -' + row[2] + ' \n '
                         final_text += temp_testcik
                     else:
                         temp_text = str(row[0]) + '\. ' + row[1] + ' \n '
@@ -246,7 +207,12 @@ class FileManager:
                     final_text += temp_text
         return final_text
     
-
+    def get_thread_name(self, message_content):
+        if message_content != '':
+            return message_content
+        if self.thread_name != '':
+            return self.thread_name
+        return 'Pls sign up in the ' + str(random.randint(0, 1000))
 
 
     

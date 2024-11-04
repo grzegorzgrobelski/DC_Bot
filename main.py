@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import re
 import json
-import random
+
 from file_manager import FileManager
 
 
@@ -65,11 +65,11 @@ async def on_message(message):
         content = await attachment.read()  
         text_content = content.decode('utf-8')  
         if '***' in text_content:
-            new_description = FileManager(message.guild,text_content).add_author(message.author.mention).build_description()
+            file_manager = (FileManager(message.guild,text_content, is_on_init = True).add_author(message.author.mention))
+            new_description = file_manager.build_description()
+            
             initial_message = await message.channel.send(new_description or "No description provided.")
-            if message.content == '':
-                message.content= 'Thread_' + str(random.randint(0, 1000))
-            thread = await initial_message.create_thread(name= message.content, auto_archive_duration=thread_lifetime) 
+            thread = await initial_message.create_thread(name= file_manager.get_thread_name(message.content), auto_archive_duration=thread_lifetime) 
 
             await message.delete()
             return
@@ -85,8 +85,19 @@ async def on_message(message):
         parent_channel = message.channel.parent
         parent_message_id = message.channel.id  
         parent_message = await parent_channel.fetch_message(parent_message_id)
-        temp_test = FileManager(message.guild, parent_message.content).add_user(message.content, message.author).show_users_in_description().build_description()
+        
+        file_manager = FileManager(message.guild, parent_message.content)
+
         #Sprawdzic jak jest turn off show_user_in_description + 14.0 -> dodanie kogos
+
+        if 'out' in message.content:
+            file_manager.delete_user(message.author)
+        else: # add user
+            file_manager.add_user(message.content, message.author)
+        
+        temp_test = file_manager.show_users_in_description().build_description()
+        
+        
         await parent_message.edit(content=temp_test)
         ##await change_thread_description(message, message.content)
         #await message.delete()
